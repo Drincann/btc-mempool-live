@@ -1,4 +1,7 @@
-const WS_URL = "wss://mempool.space/api/v1/ws";
+const WS_URL =
+  window.BTC_MEMPOOL_WS_URL ||
+  new URLSearchParams(window.location.search).get("ws") ||
+  "wss://mempool.space/api/v1/ws";
 const MAX_VISIBLE = 18;
 const MAX_PROJECTILES = 120;
 const MAX_TRAILS = 180;

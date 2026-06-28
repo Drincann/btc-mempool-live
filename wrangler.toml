@@ -1,0 +1,3 @@
+name = "btc-mempool-live-ws"
+main = "worker/ws-proxy.js"
+compatibility_date = "2026-06-01"
