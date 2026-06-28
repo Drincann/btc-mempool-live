@@ -23,6 +23,7 @@ const state = {
   projectiles: [],
   trails: [],
   hoveredAddress: null,
+  lastFrameAt: Date.now(),
 };
 
 const els = {
@@ -119,16 +120,19 @@ function handleTransactionBatch(transactions) {
   const normalized = transactions.map(normalizeTransaction);
   if (normalized.length === 0) return;
 
-  state.total += normalized.length;
+  state.total += transactions.length;
   state.recentTimestamps = state.recentTimestamps
     .filter((time) => now - time < 60_000)
-    .concat(Array.from({ length: normalized.length }, () => now));
+    .concat(Array.from({ length: Math.min(transactions.length, 240) }, () => now));
 
   normalized.forEach((tx, index) => {
     if (Number.isFinite(tx.feeBtc) && tx.feeBtc > 0) {
       state.feeSamples.push(tx.feeBtc);
     }
-    queueTransfer(tx, index, normalized.length, now);
+
+    if (!document.hidden) {
+      queueTransfer(tx, index, normalized.length, now);
+    }
   });
 
   evictExpiredAddresses(now);
@@ -314,16 +318,18 @@ function flushScheduledTransfers(now) {
   if (state.pendingTransfers.length === 0) return;
 
   const pending = [];
+  const dueTransactions = [];
   state.pendingTransfers.forEach((item) => {
     if (item.scheduledAt <= now) {
       emitAddressTransfer(item.tx, now);
-      insertTransaction(item.tx);
+      dueTransactions.push(item.tx);
     } else {
       pending.push(item);
     }
   });
 
   state.pendingTransfers = pending;
+  insertTransactionBatch(dueTransactions);
 }
 
 function emitAddressTransfer(tx, now = Date.now()) {
@@ -427,10 +433,12 @@ function updateMetrics(tx) {
     els.avgFee.textContent = formatBtc(avg);
   }
 
-  [els.totalCount, els.latestAmount, els.avgFee, els.rate].forEach((node) => {
-    node.classList.remove("stat-pop");
-    requestAnimationFrame(() => node.classList.add("stat-pop"));
-  });
+  if (!document.hidden) {
+    [els.totalCount, els.latestAmount, els.avgFee, els.rate].forEach((node) => {
+      node.classList.remove("stat-pop");
+      requestAnimationFrame(() => node.classList.add("stat-pop"));
+    });
+  }
 }
 
 function formatBtc(value) {
@@ -457,8 +465,18 @@ function draw() {
   const width = els.canvas.clientWidth;
   const height = els.canvas.clientHeight;
   const now = Date.now();
+  const frameGap = now - state.lastFrameAt;
+  state.lastFrameAt = now;
 
-  flushScheduledTransfers(now);
+  if (frameGap > 2500) {
+    state.pendingTransfers = state.pendingTransfers.filter((item) => item.scheduledAt > now);
+    state.projectiles = [];
+    state.trails = [];
+  }
+
+  if (!document.hidden) {
+    flushScheduledTransfers(now);
+  }
   evictExpiredAddresses(now);
   ctx.clearRect(0, 0, width, height);
 
@@ -507,9 +525,9 @@ function drawAddressNodes(width, height, now) {
     node.hot *= 0.9;
     node.birth *= 0.965;
 
-    const appear = easeOutCubic(Math.min(1, (now - node.bornAt) / 680));
+    const appear = easeOutCubic((now - node.bornAt) / 680);
     const ageAlpha = Math.max(0.18, 1 - (now - node.lastSeen) / ADDRESS_TTL_MS);
-    const radius = getNodeRadius(node) * (0.2 + appear * 0.8);
+    const radius = Math.max(0.1, getNodeRadius(node) * (0.2 + appear * 0.8));
     const hue = node.role === "from" ? 42 : 191;
     const isHovered = state.hoveredAddress === node.address;
     const shouldGlow = isHovered || node.hot > 0.08;
@@ -622,7 +640,8 @@ function drawProjectiles(now) {
 }
 
 function easeOutCubic(value) {
-  return 1 - Math.pow(1 - Math.min(value, 1), 3);
+  const t = clamp(value, 0, 1);
+  return 1 - Math.pow(1 - t, 3);
 }
 
 function roundRect(context, x, y, width, height, radius) {
@@ -657,6 +676,17 @@ els.clearButton.addEventListener("click", () => {
 });
 
 window.addEventListener("resize", resizeCanvas);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    state.pendingTransfers = [];
+    state.projectiles = [];
+    state.trails = [];
+    return;
+  }
+
+  evictExpiredAddresses(Date.now());
+  state.pendingTransfers = [];
+});
 resizeCanvas();
 draw();
 connect();
