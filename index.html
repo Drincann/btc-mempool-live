@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bitcoin Mainnet Transaction Stream</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="stream-panel" aria-label="Bitcoin mainnet transaction stream">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Bitcoin Mainnet</p>
+            <h1>实时交易广播</h1>
+          </div>
+          <div class="connection" id="connection">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span id="connectionText">连接中</span>
+          </div>
+        </header>
+
+        <section class="metrics" aria-label="Live stream metrics">
+          <div class="metric">
+            <span class="metric-label">已接收</span>
+            <strong id="totalCount">0</strong>
+          </div>
+          <div class="metric">
+            <span class="metric-label">最近金额</span>
+            <strong id="latestAmount">--</strong>
+          </div>
+          <div class="metric">
+            <span class="metric-label">平均手续费</span>
+            <strong id="avgFee">--</strong>
+          </div>
+          <div class="metric">
+            <span class="metric-label">队列速度</span>
+            <strong id="rate">0/min</strong>
+          </div>
+        </section>
+
+        <section class="visualizer" aria-label="Live transaction visualizer">
+          <canvas id="txCanvas"></canvas>
+        </section>
+
+        <div class="toolbar">
+          <div class="source">
+            <i data-lucide="radio"></i>
+            <span>数据源：wss://mempool.space/api/v1/ws</span>
+          </div>
+          <div class="actions">
+            <button id="pauseButton" type="button" aria-pressed="false" title="暂停刷新">
+              <i data-lucide="pause"></i>
+              <span>暂停</span>
+            </button>
+            <button id="clearButton" type="button" title="清空当前视图">
+              <i data-lucide="trash-2"></i>
+              <span>清空</span>
+            </button>
+          </div>
+        </div>
+
+        <section class="tx-list" id="transactionList" aria-live="polite" aria-label="Latest transactions">
+          <div class="empty-state" id="emptyState">
+            <i data-lucide="satellite-dish"></i>
+            <span>等待主网交易广播...</span>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <template id="transactionTemplate">
+      <article class="tx-card">
+        <div class="tx-main">
+          <div class="tx-hash-row">
+            <span class="tx-badge">TX</span>
+            <a class="tx-hash" target="_blank" rel="noreferrer"></a>
+          </div>
+          <div class="tx-meta">
+            <span class="tx-time"></span>
+            <span class="tx-inputs"></span>
+            <span class="tx-outputs"></span>
+          </div>
+        </div>
+        <div class="tx-value">
+          <strong></strong>
+          <span></span>
+        </div>
+      </article>
+    </template>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
